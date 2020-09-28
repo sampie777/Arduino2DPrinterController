@@ -1,5 +1,7 @@
 import com.fazecast.jSerialComm.SerialPort
+import gui.MainFrame
 import hardware.Printer
+import java.awt.EventQueue
 import java.util.logging.Logger
 
 val logger: Logger = Logger.getLogger("Application")
@@ -15,11 +17,15 @@ fun main(args: Array<String>) {
 
     attachExitCatcher()
 
+    EventQueue.invokeLater {
+        MainFrame.createAndShow()
+    }
+
     val connection = Printer.connect(deviceName, baudRate)
 
     @Suppress("ControlFlowWithEmptyBody")
     while (connection) {
-        if (!Printer.isReady()) {
+        if (!Printer.isReady) {
             continue
         }
 

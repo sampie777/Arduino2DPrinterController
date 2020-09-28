@@ -6,17 +6,23 @@ import kotlin.math.round
 
 class Motor(
     val name: String,
-    val mmStepDelay: Double,
     val targetReachedIdentifier: String,
-    val minimumStepDistance: Double
+    val minimumStepDistance: Double,    // Calculated by: 1 / (maxSteps / maxDistance)
 ) {
     private val logger = Logger.getLogger(Motor::class.java.name)
 
     @Volatile
     var position: Double = 0.0
+    @Volatile
+    var target: Double = 0.0
 
     @Volatile
     var targetReached: Boolean = true
+
+    fun setTargetPosition(value: Double) {
+        target = value
+        targetReached = position == target
+    }
 
     fun roundToMinimumDistance(position: Double): Double {
         val factor = round(position / minimumStepDistance)

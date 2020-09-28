@@ -2,11 +2,9 @@ package hardware
 
 import com.fazecast.jSerialComm.SerialPort
 import hardware.serial.SerialListener
-import linspace
 import java.util.logging.Logger
 import kotlin.math.abs
 import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 object Printer : HardwareDevice {
@@ -17,25 +15,10 @@ object Printer : HardwareDevice {
     override fun getComPort() = comPort
 
     @Volatile
-    private var _isReady: Boolean = false
-    override fun isReady(): Boolean = _isReady
+    override var isReady: Boolean = false
 
-    private val motorX = Motor("X", 4714 / 50.0, "2: target reached", 0.08)
-    private val motorY = Motor("Y", 4351 / 30.0, "7: target reached", 0.25)
-
-    override fun setReady(value: Boolean) {
-        _isReady = value
-
-        if (!_isReady) {
-            logger.info("Printer is not ready")
-            return
-        }
-        logger.info("Printer is ready")
-
-        logger.fine("Turning off sweep")
-        // Turn off sweep
-        serialListener.send("s")
-    }
+    val motorX = Motor("X", "2: target reached", 0.08)
+    val motorY = Motor("Y", "7: target reached", 0.23)
 
     private val serialListener = SerialListener(this)
 
@@ -69,16 +52,20 @@ object Printer : HardwareDevice {
 
     override fun processSerialInput(data: List<String>) {
         if ("Boot done." in data) {
-            setReady(true)
+            logger.info("Printer is ready")
+            isReady = true
+            sweep(false)
         }
 
         if (motorX.targetReachedIdentifier in data) {
             logger.fine("Motor ${motorX.name} reached target")
             motorX.targetReached = true
+            motorX.position = motorX.target
         }
         if (motorY.targetReachedIdentifier in data) {
             logger.fine("Motor ${motorY.name} reached target")
             motorY.targetReached = true
+            motorY.position = motorY.target
         }
     }
 
@@ -94,10 +81,8 @@ object Printer : HardwareDevice {
     fun moveTo(x: Double, y: Double, waitForMotors: Boolean = false) {
         logger.fine("Moving to $x, $y")
 
-        motorX.targetReached = motorX.position == x
-        motorX.position = x
-        motorY.targetReached = motorY.position == x
-        motorY.position = y
+        motorX.setTargetPosition(x)
+        motorY.setTargetPosition(y)
 
         val paddedX = (x * 10).roundToInt().toString().padStart(4, '0')
         val paddedY = (y * 10).roundToInt().toString().padStart(4, '0')
@@ -142,7 +127,7 @@ object Printer : HardwareDevice {
         waitForMotors()
     }
 
-    fun sweep() {
-        serialListener.send("s")
+    fun sweep(on: Boolean) {
+        serialListener.send("s" + (if (on) "1" else "0"))
     }
 }
