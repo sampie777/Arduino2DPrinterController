@@ -27,9 +27,10 @@ fun main(args: Array<String>) {
         Printer.moveTo(0.0, 0.0, waitForMotors = true)
         Thread.sleep(1000)
 
-        (0..100).forEach {
-            Printer.moveTo(it / 10.0 * 3, it / 10.0 * 3, waitForMotors = true)
-        }
+        Printer.lineTo(30.0, 0.0)
+        Printer.lineTo(30.0, 30.0)
+        Printer.lineTo(0.0, 30.0)
+        Printer.lineTo(0.0, 0.0)
     }
 
     logger.info("Connection lost")

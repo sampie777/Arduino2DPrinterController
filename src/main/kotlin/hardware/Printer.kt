@@ -2,10 +2,11 @@ package hardware
 
 import com.fazecast.jSerialComm.SerialPort
 import hardware.serial.SerialListener
+import linspace
 import java.util.logging.Logger
 import kotlin.math.abs
-import kotlin.math.ceil
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 object Printer : HardwareDevice {
@@ -19,8 +20,8 @@ object Printer : HardwareDevice {
     private var _isReady: Boolean = false
     override fun isReady(): Boolean = _isReady
 
-    private val motorX = Motor("X", 4714 / 50.0, "2: target reached")
-    private val motorY = Motor("Y", 4351 / 30.0, "7: target reached")
+    private val motorX = Motor("X", 4714 / 50.0, "2: target reached", 0.08)
+    private val motorY = Motor("Y", 4351 / 30.0, "7: target reached", 0.25)
 
     override fun setReady(value: Boolean) {
         _isReady = value
@@ -31,7 +32,7 @@ object Printer : HardwareDevice {
         }
         logger.info("Printer is ready")
 
-        logger.info("Turning off sweep")
+        logger.fine("Turning off sweep")
         // Turn off sweep
         serialListener.send("s")
     }
@@ -72,26 +73,26 @@ object Printer : HardwareDevice {
         }
 
         if (motorX.targetReachedIdentifier in data) {
-            logger.info("Motor ${motorX.name} reached target")
+            logger.fine("Motor ${motorX.name} reached target")
             motorX.targetReached = true
         }
         if (motorY.targetReachedIdentifier in data) {
-            logger.info("Motor ${motorY.name} reached target")
+            logger.fine("Motor ${motorY.name} reached target")
             motorY.targetReached = true
         }
     }
 
     private fun clearComPort() {
-        logger.info("Clearing com port buffer...")
+        logger.fine("Clearing com port buffer...")
         while (comPort!!.bytesAvailable() > 0) {
             val byteBuffer = ByteArray(comPort!!.bytesAvailable())
             comPort?.readBytes(byteBuffer, byteBuffer.size.toLong())
         }
-        logger.info("Com port buffer cleared")
+        logger.fine("Com port buffer cleared")
     }
 
     fun moveTo(x: Double, y: Double, waitForMotors: Boolean = false) {
-        logger.info("Moving to $x, $y")
+        logger.fine("Moving to $x, $y")
 
         motorX.targetReached = motorX.position == x
         motorX.position = x
@@ -108,8 +109,40 @@ object Printer : HardwareDevice {
     }
 
     fun waitForMotors() {
-        logger.info("Waiting for motors to reach position")
-        while (!(motorX.targetReached && motorY.targetReached)) {}
-        logger.info("Motor positions reached")
+        logger.fine("Waiting for motors to reach position")
+        while (!(motorX.targetReached && motorY.targetReached)) {
+        }
+        logger.fine("Motor positions reached")
+    }
+
+    fun lineTo(x: Double, y: Double) {
+        logger.info("Line to $x, $y")
+
+        val xDiff = x - motorX.position
+        val yDiff = y - motorY.position
+
+        val stepsX = abs(xDiff / motorX.minimumStepDistance).roundToInt()
+        val stepsY = abs(yDiff / motorY.minimumStepDistance).roundToInt()
+
+        val steps = max(stepsX, stepsY)
+
+        val startX = motorX.position
+        val startY = motorY.position
+        (1..steps).forEach { step ->
+            moveTo(
+                motorX.roundToMinimumDistance(startX + xDiff * step.toDouble() / steps),
+                motorY.roundToMinimumDistance(startY + yDiff * step.toDouble() / steps),
+                waitForMotors = true
+            )
+        }
+    }
+
+    fun resetHead() {
+        serialListener.send("f")
+        waitForMotors()
+    }
+
+    fun sweep() {
+        serialListener.send("s")
     }
 }

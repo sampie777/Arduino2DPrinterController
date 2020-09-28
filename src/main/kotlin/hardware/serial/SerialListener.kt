@@ -33,7 +33,7 @@ class SerialListener(private val hardwareDevice: HardwareDevice) : SerialPortDat
 
         receivedDataLines.addAll(terminatedMessages)
         terminatedMessages.forEach {
-            println(it)
+            logger.fine("Serial data: $it")
         }
 
         hardwareDevice.processSerialInput(terminatedMessages)
