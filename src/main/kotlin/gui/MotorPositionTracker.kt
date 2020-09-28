@@ -16,7 +16,7 @@ class MotorPositionTracker : JComponent() {
 
     private val pixelsPerMm: Double = 10.0
     private val lastKnownPositions = arrayListOf<Array<Double>>()
-    private val maxLastKnownPositions = 400
+    private val maxLastKnownPositions = 600
 
     init {
         border = LineBorder(Color.BLACK)

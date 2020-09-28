@@ -23,20 +23,14 @@ fun main(args: Array<String>) {
 
     val connection = Printer.connect(deviceName, baudRate)
 
-    @Suppress("ControlFlowWithEmptyBody")
+    var drawingDone = false
     while (connection) {
-        if (!Printer.isReady) {
-            continue
-        }
+        if (!Printer.isReady) continue
 
-        Thread.sleep(1000)
-        Printer.moveTo(0.0, 0.0, waitForMotors = true)
-        Thread.sleep(1000)
+        if (drawingDone) continue
 
-        Printer.lineTo(30.0, 0.0)
-        Printer.lineTo(30.0, 30.0)
-        Printer.lineTo(0.0, 30.0)
-        Printer.lineTo(0.0, 0.0)
+        drawLines()
+        drawingDone = true
     }
 
     logger.info("Connection lost")
@@ -65,4 +59,22 @@ fun exitApplication() {
     Printer.disconnect()
 
     logger.info("Shutdown finished")
+}
+
+fun drawLines() {
+    logger.info("Start drawing")
+
+    // Set head to nearest location by going along the edge of the paper
+    if (handDrawingPoints[0][0] > handDrawingPoints[0][1]) {
+        Printer.lineTo(0.0, handDrawingPoints[0][0])
+    } else {
+        Printer.lineTo(handDrawingPoints[0][1], 0.0)
+    }
+
+    handDrawingPoints.forEach {
+        Printer.lineTo(it[1], it[0])
+    }
+    Printer.lineTo(handDrawingPoints[0][1], handDrawingPoints[0][0])    // Close gap between last and first point
+
+    logger.info("Drawing is done")
 }
