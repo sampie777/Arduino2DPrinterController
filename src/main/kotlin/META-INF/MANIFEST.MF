@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Main-Class: ApplicationKt
+Implementation-Title: Arduino2DPrinterController
+Implementation-Vendor-Id: Arduino2DPrinterController
