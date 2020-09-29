@@ -1,6 +1,8 @@
 package gui
 
 
+import events.EventsHub
+import events.PrinterEventListener
 import hardware.Printer
 import java.awt.Color
 import java.awt.Dimension
@@ -11,14 +13,20 @@ import javax.swing.JComponent
 import javax.swing.border.LineBorder
 import kotlin.math.roundToInt
 
-class MotorPositionTracker : JComponent() {
+class MotorPositionTracker : JComponent(), PrinterEventListener {
     private val logger = Logger.getLogger(MotorPositionTracker::class.java.name)
 
-    private val pixelsPerMm: Double = 10.0
+    private val pixelsPerMm: Double = 15.0
     private val lastKnownPositions = arrayListOf<Array<Double>>()
-    private val maxLastKnownPositions = 600
+    private val maxLastKnownPositions = 1000
 
     init {
+        initGui()
+
+        EventsHub.register(this)
+    }
+
+    private fun initGui() {
         border = LineBorder(Color.BLACK)
         preferredSize = Dimension((109 * pixelsPerMm).toInt(), (31 * pixelsPerMm).toInt())
     }
@@ -38,22 +46,26 @@ class MotorPositionTracker : JComponent() {
         }
     }
 
+    override fun targetReached(x: Double, y: Double) {
+        saveLastKnownPositions()
+    }
+
     override fun paintComponent(g: Graphics) {
         super.paintComponents(g as Graphics2D)
         setDefaultRenderingHints(g)
 
-        saveLastKnownPositions()
-
         g.color = Color(83, 83, 83)
         g.fillRect(0, 0, width, height)
 
-        lastKnownPositions.forEachIndexed { index, it ->
-            val positionX = it[0] * pixelsPerMm
-            val positionY = it[1] * pixelsPerMm
+        lastKnownPositions
+            .toTypedArray()
+            .forEachIndexed { index, it ->
+                val positionX = it[0] * pixelsPerMm
+                val positionY = it[1] * pixelsPerMm
 
-            g.color = Color(200 - (200 * index.toDouble() / lastKnownPositions.size).roundToInt(), 255, 0)
-            g.fillOval(positionX.roundToInt() - 1, positionY.roundToInt() - 1, 2, 2)
-        }
+                g.color = Color(200 - (200 * index.toDouble() / lastKnownPositions.size).roundToInt(), 255, 0)
+                g.fillOval(positionX.roundToInt() - 1, positionY.roundToInt() - 1, 2, 2)
+            }
 
         val positionX = Printer.motorX.position * pixelsPerMm
         val positionY = Printer.motorY.position * pixelsPerMm

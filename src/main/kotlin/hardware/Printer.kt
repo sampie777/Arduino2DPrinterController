@@ -1,6 +1,7 @@
 package hardware
 
 import com.fazecast.jSerialComm.SerialPort
+import events.EventsHub
 import hardware.serial.SerialListener
 import java.util.logging.Logger
 import kotlin.math.abs
@@ -17,8 +18,8 @@ object Printer : HardwareDevice {
     @Volatile
     override var isReady: Boolean = false
 
-    val motorX = Motor("X", "2: target reached", 0.08)
-    val motorY = Motor("Y", "7: target reached", 0.23)
+    val motorX = Motor("X", "[StepperMotor] X: Target reached", 0.08)
+    val motorY = Motor("Y", "[StepperMotor] Y: Target reached", 0.23)
 
     private val serialListener = SerialListener(this)
 
@@ -50,11 +51,24 @@ object Printer : HardwareDevice {
         logger.info("Hardware device disconnected")
     }
 
+    private fun clearComPort() {
+        logger.fine("Clearing com port buffer...")
+        while (comPort!!.bytesAvailable() > 0) {
+            val byteBuffer = ByteArray(comPort!!.bytesAvailable())
+            comPort?.readBytes(byteBuffer, byteBuffer.size.toLong())
+        }
+        logger.fine("Com port buffer cleared")
+    }
+
     override fun processSerialInput(data: List<String>) {
-        if ("Boot done." in data) {
-            logger.info("Printer is ready")
-            isReady = true
+        if ("[Main] Boot done." in data) {
+            logger.info("Printer is done booting")
             sweep(false)
+        }
+
+        if ("[Serial] Toggling sweep mode off" in data) {
+            logger.info("Sweeping disabled, printer is ready")
+            isReady = true
         }
 
         if (motorX.targetReachedIdentifier in data) {
@@ -67,15 +81,10 @@ object Printer : HardwareDevice {
             motorY.targetReached = true
             motorY.position = motorY.target
         }
-    }
 
-    private fun clearComPort() {
-        logger.fine("Clearing com port buffer...")
-        while (comPort!!.bytesAvailable() > 0) {
-            val byteBuffer = ByteArray(comPort!!.bytesAvailable())
-            comPort?.readBytes(byteBuffer, byteBuffer.size.toLong())
+        if ("[Serial] Toggling sweep mode on" in data || "[Main] Sweep up" in data || "[Main] Sweep down" in data) {
+            sweep(false)
         }
-        logger.fine("Com port buffer cleared")
     }
 
     fun moveTo(x: Double, y: Double, waitForMotors: Boolean = false) {
@@ -88,6 +97,8 @@ object Printer : HardwareDevice {
         val paddedY = (y * 10).roundToInt().toString().padStart(4, '0')
         serialListener.send("x${paddedX}y${paddedY}")
 
+        EventsHub.newPosition(motorX.position, motorY.position)
+
         if (!waitForMotors) return
 
         waitForMotors()
@@ -97,11 +108,12 @@ object Printer : HardwareDevice {
         logger.fine("Waiting for motors to reach position")
         while (!(motorX.targetReached && motorY.targetReached)) {
         }
+        EventsHub.targetReached(motorX.target, motorY.target)
         logger.fine("Motor positions reached")
     }
 
     fun lineTo(x: Double, y: Double) {
-        logger.info("Line to $x, $y")
+        logger.fine("Line to $x, $y")
 
         val xDiff = x - motorX.position
         val yDiff = y - motorY.position
@@ -123,11 +135,11 @@ object Printer : HardwareDevice {
     }
 
     fun resetHead() {
-        serialListener.send("f")
+        serialListener.send("f\n")
         waitForMotors()
     }
 
     fun sweep(on: Boolean) {
-        serialListener.send("s" + (if (on) "1" else "0"))
+        serialListener.send("s" + (if (on) "1" else "0") + "\n")
     }
 }

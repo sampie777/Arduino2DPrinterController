@@ -26,6 +26,7 @@ class MainFramePanel : JPanel() {
         layout = BorderLayout(10, 10)
 
         add(MotorPositionTracker(), BorderLayout.CENTER)
+//        add(SerialDataPanel(), BorderLayout.SOUTH)
     }
 
     override fun paintComponent(g: Graphics) {

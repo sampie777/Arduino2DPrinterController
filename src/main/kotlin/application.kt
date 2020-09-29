@@ -76,5 +76,14 @@ fun drawLines() {
     }
     Printer.lineTo(handDrawingPoints[0][1], handDrawingPoints[0][0])    // Close gap between last and first point
 
+
+    // Set head to nearest location for going along the edge of the paper
+    if (handDrawingPoints[0][0] > handDrawingPoints[0][1]) {
+        Printer.lineTo(0.0, handDrawingPoints[0][0])
+    } else {
+        Printer.lineTo(handDrawingPoints[0][1], 0.0)
+    }
+    Printer.lineTo(0.0, 0.0)
+
     logger.info("Drawing is done")
 }

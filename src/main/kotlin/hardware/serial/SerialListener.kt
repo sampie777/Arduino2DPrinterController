@@ -4,12 +4,14 @@ package hardware.serial
 import com.fazecast.jSerialComm.SerialPort
 import com.fazecast.jSerialComm.SerialPortDataListener
 import com.fazecast.jSerialComm.SerialPortEvent
+import events.EventsHub
 import hardware.HardwareDevice
 import java.util.logging.Logger
 
 class SerialListener(private val hardwareDevice: HardwareDevice) : SerialPortDataListener {
     private val logger = Logger.getLogger(SerialListener::class.java.name)
 
+    private var keepAllMessages: Boolean = false
     var currentDataLine: String = ""
     val receivedDataLines = ArrayList<String>()
 
@@ -31,11 +33,14 @@ class SerialListener(private val hardwareDevice: HardwareDevice) : SerialPortDat
         val terminatedMessages = messages.subList(0, messages.size - 1)
         currentDataLine = messages.last()
 
-        receivedDataLines.addAll(terminatedMessages)
+        if (keepAllMessages) {
+            receivedDataLines.addAll(terminatedMessages)
+        }
         terminatedMessages.forEach {
             logger.fine("Serial data: $it")
         }
 
+        EventsHub.dataReceived(terminatedMessages)
         hardwareDevice.processSerialInput(terminatedMessages)
     }
 
@@ -52,6 +57,8 @@ class SerialListener(private val hardwareDevice: HardwareDevice) : SerialPortDat
         if (writtenBytes != dataBytes.size) {
             logger.warning("Not all bytes were sent. Only $writtenBytes out of ${dataBytes.size}")
         }
+
+        EventsHub.dataSend(data)
     }
 
     fun clear() {
