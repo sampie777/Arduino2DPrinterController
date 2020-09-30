@@ -1,18 +1,22 @@
 import com.fazecast.jSerialComm.SerialPort
+import config.Config
 import gui.MainFrame
 import hardware.Printer
+import hardware.PrinterState
 import java.awt.EventQueue
 import java.util.logging.Logger
 
-val logger: Logger = Logger.getLogger("Application")
+private val logger: Logger = Logger.getLogger("Application")
 
 fun main(args: Array<String>) {
-    val deviceName = "ttyUSB0"
-    val baudRate = 115200
-
     if (args.contains("--list-devices")) {
         listSerialPorts()
         return
+    }
+
+    if (args.contains("--virtual")) {
+        logger.info("Running as virtual device")
+        Config.runVirtual = true
     }
 
     attachExitCatcher()
@@ -21,11 +25,14 @@ fun main(args: Array<String>) {
         MainFrame.createAndShow()
     }
 
-    val connection = Printer.connect(deviceName, baudRate)
+    val connection = Printer.connect(Config.deviceName, Config.baudRate)
+    if (!connection) {
+        exitApplication()
+    }
 
     var drawingDone = false
     while (connection) {
-        if (!Printer.isReady) continue
+        if (Printer.state != PrinterState.IDLE && Printer.state != PrinterState.PRINTING) continue
 
         if (drawingDone) continue
 
@@ -51,14 +58,6 @@ fun attachExitCatcher() {
             exitApplication()
         }
     })
-}
-
-fun exitApplication() {
-    logger.info("Exiting application...")
-
-    Printer.disconnect()
-
-    logger.info("Shutdown finished")
 }
 
 fun drawLines() {

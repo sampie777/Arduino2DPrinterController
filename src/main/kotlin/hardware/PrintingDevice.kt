@@ -2,8 +2,9 @@ package hardware
 
 import com.fazecast.jSerialComm.SerialPort
 
-interface HardwareDevice {
-    var isReady: Boolean
+interface PrintingDevice {
+    var state: PrinterState
+
     fun getComPort(): SerialPort?
     fun connect(deviceName: String, baudRate: Int): Boolean
     fun disconnect() {}

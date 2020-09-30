@@ -5,10 +5,10 @@ import com.fazecast.jSerialComm.SerialPort
 import com.fazecast.jSerialComm.SerialPortDataListener
 import com.fazecast.jSerialComm.SerialPortEvent
 import events.EventsHub
-import hardware.HardwareDevice
+import hardware.PrintingDevice
 import java.util.logging.Logger
 
-class SerialListener(private val hardwareDevice: HardwareDevice) : SerialPortDataListener {
+class SerialListener(private val printingDevice: PrintingDevice) : SerialPortDataListener {
     private val logger = Logger.getLogger(SerialListener::class.java.name)
 
     private var keepAllMessages: Boolean = false
@@ -41,18 +41,18 @@ class SerialListener(private val hardwareDevice: HardwareDevice) : SerialPortDat
         }
 
         EventsHub.dataReceived(terminatedMessages)
-        hardwareDevice.processSerialInput(terminatedMessages)
+        printingDevice.processSerialInput(terminatedMessages)
     }
 
     fun send(data: String) {
         logger.fine("Sending data to serial device: $data")
-        if (hardwareDevice.getComPort() == null) {
+        if (printingDevice.getComPort() == null) {
             logger.warning("Serial device unconnected, cannot send data")
             return
         }
 
         val dataBytes = data.toByteArray()
-        val writtenBytes = hardwareDevice.getComPort()?.writeBytes(dataBytes, dataBytes.size.toLong())
+        val writtenBytes = printingDevice.getComPort()?.writeBytes(dataBytes, dataBytes.size.toLong())
 
         if (writtenBytes != dataBytes.size) {
             logger.warning("Not all bytes were sent. Only $writtenBytes out of ${dataBytes.size}")

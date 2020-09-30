@@ -1,6 +1,7 @@
 package hardware
 
 import com.fazecast.jSerialComm.SerialPort
+import config.Config
 import events.EventsHub
 import hardware.serial.SerialListener
 import java.util.logging.Logger
@@ -8,7 +9,7 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-object Printer : HardwareDevice {
+object Printer : PrintingDevice {
     private val logger = Logger.getLogger(Printer::class.java.name)
 
     @Volatile
@@ -16,7 +17,16 @@ object Printer : HardwareDevice {
     override fun getComPort() = comPort
 
     @Volatile
-    override var isReady: Boolean = false
+    override var state: PrinterState = PrinterState.NOT_CONNECTED
+        set(value) {
+            if (value != field) {
+                logger.info("New printer state: ${value.name}")
+            }
+
+            field = value
+
+            Thread { EventsHub.stateChanged(value) }.start()
+        }
 
     val motorX = Motor("X", "[StepperMotor] X: Target reached", 0.08)
     val motorY = Motor("Y", "[StepperMotor] Y: Target reached", 0.23)
@@ -24,9 +34,17 @@ object Printer : HardwareDevice {
     private val serialListener = SerialListener(this)
 
     override fun connect(deviceName: String, baudRate: Int): Boolean {
+        if (Config.runVirtual) {
+            logger.info("Connecting to virtual printer")
+            state = PrinterState.IDLE
+            return true
+        }
+        logger.info("Connecting to serial device '$deviceName' with baud rate $baudRate")
+
         comPort = SerialPort.getCommPorts().find { it.systemPortName == deviceName }
         if (comPort == null) {
             logger.severe("Serial device '$deviceName' not found")
+            state = PrinterState.NOT_CONNECTED
             return false
         }
 
@@ -35,6 +53,7 @@ object Printer : HardwareDevice {
 
         if (!connected) {
             logger.severe("Could not connect to hardware device '$deviceName'")
+            state = PrinterState.NOT_CONNECTED
             return false
         }
 
@@ -42,12 +61,16 @@ object Printer : HardwareDevice {
         clearComPort()
         comPort!!.addDataListener(serialListener)
 
+        state = PrinterState.BOOTING
         return true
     }
 
     override fun disconnect() {
         logger.info("Disconnecting hardware")
-        comPort?.closePort()
+        if (!Config.runVirtual) {
+            comPort?.closePort()
+        }
+        state = PrinterState.NOT_CONNECTED
         logger.info("Hardware device disconnected")
     }
 
@@ -61,14 +84,32 @@ object Printer : HardwareDevice {
     }
 
     override fun processSerialInput(data: List<String>) {
+        if ("[Main] Booting." in data) {
+            logger.info("Printer is booting")
+            state = PrinterState.BOOTING
+        }
+        if ("[StepperMotor] X: Finding reset position" in data || "[StepperMotor] Y: Finding reset position" in data) {
+            logger.info("Printer is calibrating")
+            state = PrinterState.CALIBRATING
+        }
+
         if ("[Main] Boot done." in data) {
             logger.info("Printer is done booting")
-            sweep(false)
+            state = PrinterState.SWEEPING
+            setSweep(false)
+        }
+
+        if ("[Serial] Toggling sweep mode on" in data
+            || "[Main] X: Sweep up" in data || "[Main] X: Sweep down" in data
+            || "[Main] Y: Sweep up" in data || "[Main] Y: Sweep down" in data
+        ) {
+            state = PrinterState.SWEEPING
+            setSweep(false)
         }
 
         if ("[Serial] Toggling sweep mode off" in data) {
             logger.info("Sweeping disabled, printer is ready")
-            isReady = true
+            state = PrinterState.IDLE
         }
 
         if (motorX.targetReachedIdentifier in data) {
@@ -81,10 +122,6 @@ object Printer : HardwareDevice {
             motorY.targetReached = true
             motorY.position = motorY.target
         }
-
-        if ("[Serial] Toggling sweep mode on" in data || "[Main] Sweep up" in data || "[Main] Sweep down" in data) {
-            sweep(false)
-        }
     }
 
     fun moveTo(x: Double, y: Double, waitForMotors: Boolean = false) {
@@ -93,11 +130,13 @@ object Printer : HardwareDevice {
         motorX.setTargetPosition(x)
         motorY.setTargetPosition(y)
 
-        val paddedX = (x * 10).roundToInt().toString().padStart(4, '0')
-        val paddedY = (y * 10).roundToInt().toString().padStart(4, '0')
-        serialListener.send("x${paddedX}y${paddedY}")
+        if (!Config.runVirtual) {
+            val paddedX = (x * 10).roundToInt().toString().padStart(4, '0')
+            val paddedY = (y * 10).roundToInt().toString().padStart(4, '0')
+            serialListener.send("x${paddedX}y${paddedY}")
+        }
 
-        EventsHub.newPosition(motorX.position, motorY.position)
+        Thread { EventsHub.newPosition(motorX.position, motorY.position) }.start()
 
         if (!waitForMotors) return
 
@@ -106,14 +145,24 @@ object Printer : HardwareDevice {
 
     fun waitForMotors() {
         logger.fine("Waiting for motors to reach position")
+
+        if (Config.runVirtual) {
+            processSerialInput(listOf(motorX.targetReachedIdentifier))
+            processSerialInput(listOf(motorY.targetReachedIdentifier))
+            Thread.sleep(Config.runVirtualSpeed)
+        }
+
+        @Suppress("ControlFlowWithEmptyBody")
         while (!(motorX.targetReached && motorY.targetReached)) {
         }
-        EventsHub.targetReached(motorX.target, motorY.target)
+
+        Thread { EventsHub.targetReached(motorX.target, motorY.target) }.start()
         logger.fine("Motor positions reached")
     }
 
     fun lineTo(x: Double, y: Double) {
         logger.fine("Line to $x, $y")
+        state = PrinterState.PRINTING
 
         val xDiff = x - motorX.position
         val yDiff = y - motorY.position
@@ -132,6 +181,7 @@ object Printer : HardwareDevice {
                 waitForMotors = true
             )
         }
+        state = PrinterState.IDLE
     }
 
     fun resetHead() {
@@ -139,7 +189,7 @@ object Printer : HardwareDevice {
         waitForMotors()
     }
 
-    fun sweep(on: Boolean) {
+    fun setSweep(on: Boolean) {
         serialListener.send("s" + (if (on) "1" else "0") + "\n")
     }
 }
