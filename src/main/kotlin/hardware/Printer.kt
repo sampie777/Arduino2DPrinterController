@@ -25,18 +25,24 @@ object Printer : PrintingDevice {
 
             field = value
 
-            Thread { EventsHub.stateChanged(value) }.start()
+            EventsHub.stateChanged(value)
         }
 
-    val motorX = Motor("X", "[StepperMotor] X: Target reached", 0.08)
-    val motorY = Motor("Y", "[StepperMotor] Y: Target reached", 0.23)
+    val motorX = Motor("X", Config.serialStringMotorXTargetReached, 0.08)
+    val motorY = Motor("Y", Config.serialStringMotorYTargetReached, 0.23)
 
     private val serialListener = SerialListener(this)
 
     override fun connect(deviceName: String, baudRate: Int): Boolean {
         if (Config.runVirtual) {
             logger.info("Connecting to virtual printer")
-            state = PrinterState.IDLE
+            Thread.sleep(500)
+            serialListener.onDataReceived("${Config.serialStringIsBooting}\n".toByteArray())
+            Thread.sleep(1000)
+            serialListener.onDataReceived("${Config.serialStringCalibratingMotorX}\n".toByteArray())
+            serialListener.onDataReceived("${Config.serialStringCalibratingMotorY}\n".toByteArray())
+            Thread.sleep(2000)
+            serialListener.onDataReceived("${Config.serialStringBootDone}\n".toByteArray())
             return true
         }
         logger.info("Connecting to serial device '$deviceName' with baud rate $baudRate")
@@ -84,30 +90,30 @@ object Printer : PrintingDevice {
     }
 
     override fun processSerialInput(data: List<String>) {
-        if ("[Main] Booting." in data) {
+        if (Config.serialStringIsBooting in data) {
             logger.info("Printer is booting")
             state = PrinterState.BOOTING
         }
-        if ("[StepperMotor] X: Finding reset position" in data || "[StepperMotor] Y: Finding reset position" in data) {
+        if (Config.serialStringCalibratingMotorX in data || Config.serialStringCalibratingMotorY in data) {
             logger.info("Printer is calibrating")
             state = PrinterState.CALIBRATING
         }
 
-        if ("[Main] Boot done." in data) {
+        if (Config.serialStringBootDone in data) {
             logger.info("Printer is done booting")
             state = PrinterState.SWEEPING
             setSweep(false)
         }
 
-        if ("[Serial] Toggling sweep mode on" in data
-            || "[Main] X: Sweep up" in data || "[Main] X: Sweep down" in data
-            || "[Main] Y: Sweep up" in data || "[Main] Y: Sweep down" in data
+        if (Config.serialStringSweepOn in data
+            || Config.serialStringSweepUpX in data || Config.serialStringSweepDownX in data
+            || Config.serialStringSweepUpY in data || Config.serialStringSweepDownY in data
         ) {
             state = PrinterState.SWEEPING
             setSweep(false)
         }
 
-        if ("[Serial] Toggling sweep mode off" in data) {
+        if (Config.serialStringSweepOff in data) {
             logger.info("Sweeping disabled, printer is ready")
             state = PrinterState.IDLE
         }
@@ -130,13 +136,11 @@ object Printer : PrintingDevice {
         motorX.setTargetPosition(x)
         motorY.setTargetPosition(y)
 
-        if (!Config.runVirtual) {
-            val paddedX = (x * 10).roundToInt().toString().padStart(4, '0')
-            val paddedY = (y * 10).roundToInt().toString().padStart(4, '0')
-            serialListener.send("x${paddedX}y${paddedY}")
-        }
+        val paddedX = (x * 10).roundToInt().toString().padStart(4, '0')
+        val paddedY = (y * 10).roundToInt().toString().padStart(4, '0')
+        serialListener.send("x${paddedX}y${paddedY}")
 
-        Thread { EventsHub.newPosition(motorX.position, motorY.position) }.start()
+        EventsHub.newPosition(motorX.position, motorY.position)
 
         if (!waitForMotors) return
 
@@ -147,8 +151,8 @@ object Printer : PrintingDevice {
         logger.fine("Waiting for motors to reach position")
 
         if (Config.runVirtual) {
-            processSerialInput(listOf(motorX.targetReachedIdentifier))
-            processSerialInput(listOf(motorY.targetReachedIdentifier))
+            serialListener.onDataReceived("${Config.serialStringMotorXTargetReached}\n".toByteArray())
+            serialListener.onDataReceived("${Config.serialStringMotorYTargetReached}\n".toByteArray())
             Thread.sleep(Config.runVirtualSpeed)
         }
 
@@ -156,7 +160,7 @@ object Printer : PrintingDevice {
         while (!(motorX.targetReached && motorY.targetReached)) {
         }
 
-        Thread { EventsHub.targetReached(motorX.target, motorY.target) }.start()
+        EventsHub.targetReached(motorX.target, motorY.target)
         logger.fine("Motor positions reached")
     }
 
@@ -185,11 +189,23 @@ object Printer : PrintingDevice {
     }
 
     fun resetHead() {
-        serialListener.send("f\n")
+        serialListener.send(Config.serialStringCalibrateMotors)
+
+        if (Config.runVirtual) {
+            Thread.sleep(10)
+            serialListener.onDataReceived("${Config.serialStringCalibratingMotorX}\n".toByteArray())
+            serialListener.onDataReceived("${Config.serialStringCalibratingMotorY}\n".toByteArray())
+        }
+
         waitForMotors()
     }
 
     fun setSweep(on: Boolean) {
-        serialListener.send("s" + (if (on) "1" else "0") + "\n")
+        serialListener.send(if (on) Config.serialStringTurnSweepOn else Config.serialStringTurnSweepOff)
+
+        if (Config.runVirtual) {
+            Thread.sleep(10)
+            serialListener.onDataReceived("${if (on) Config.serialStringSweepOn else Config.serialStringSweepOff}\n".toByteArray())
+        }
     }
 }

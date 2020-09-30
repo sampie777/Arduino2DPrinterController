@@ -4,6 +4,7 @@ package hardware.serial
 import com.fazecast.jSerialComm.SerialPort
 import com.fazecast.jSerialComm.SerialPortDataListener
 import com.fazecast.jSerialComm.SerialPortEvent
+import config.Config
 import events.EventsHub
 import hardware.PrintingDevice
 import java.util.logging.Logger
@@ -25,7 +26,11 @@ class SerialListener(private val printingDevice: PrintingDevice) : SerialPortDat
             return
         }
 
-        currentDataLine += String(event.receivedData)
+        onDataReceived(event.receivedData)
+    }
+
+    fun onDataReceived(data: ByteArray) {
+        currentDataLine += String(data)
         val messages = currentDataLine
             .split("\n")
             .map { it.trim('\r') }
@@ -46,6 +51,11 @@ class SerialListener(private val printingDevice: PrintingDevice) : SerialPortDat
 
     fun send(data: String) {
         logger.fine("Sending data to serial device: $data")
+        if (Config.runVirtual) {
+            EventsHub.dataSend(data)
+            return
+        }
+
         if (printingDevice.getComPort() == null) {
             logger.warning("Serial device unconnected, cannot send data")
             return

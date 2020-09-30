@@ -1,29 +1,42 @@
 package gui
 
 
+import config.Config
 import events.EventsHub
 import events.PrinterEventListener
 import hardware.Printer
-import java.awt.Color
-import java.awt.Dimension
-import java.awt.Graphics
-import java.awt.Graphics2D
+import hardware.PrinterState
+import java.awt.*
+import java.util.*
 import java.util.logging.Logger
 import javax.swing.JComponent
+import javax.swing.JPanel
 import javax.swing.border.LineBorder
 import kotlin.math.roundToInt
 
-class MotorPositionTracker : JComponent(), PrinterEventListener {
+class MotorPositionTracker : JPanel(), PrinterEventListener {
     private val logger = Logger.getLogger(MotorPositionTracker::class.java.name)
 
-    private val pixelsPerMm: Double = 15.0
+    private val pixelsPerMm: Double = Config.pixelsPerMm
     private val lastKnownPositions = arrayListOf<Array<Double>>()
-    private val maxLastKnownPositions = 1000
+    private val showPrintingStates = arrayOf(
+        PrinterState.NOT_CONNECTED,
+        PrinterState.BOOTING,
+        PrinterState.CALIBRATING,
+        PrinterState.SWEEPING,
+        PrinterState.IDLE,
+    )
+
+    private val screenUpdateTimer = Timer()
+    @Volatile
+    private var isRepainting = false
 
     init {
         initGui()
 
         EventsHub.register(this)
+
+        startScreenUpdateTimer()
     }
 
     private fun initGui() {
@@ -41,7 +54,7 @@ class MotorPositionTracker : JComponent(), PrinterEventListener {
 
         lastKnownPositions.add(position)
 
-        while (lastKnownPositions.size > maxLastKnownPositions) {
+        while (lastKnownPositions.size > Config.maxLastKnownPositions) {
             lastKnownPositions.removeAt(0)
         }
     }
@@ -51,6 +64,8 @@ class MotorPositionTracker : JComponent(), PrinterEventListener {
     }
 
     override fun paintComponent(g: Graphics) {
+        isRepainting = true
+
         super.paintComponents(g as Graphics2D)
         setDefaultRenderingHints(g)
 
@@ -76,5 +91,46 @@ class MotorPositionTracker : JComponent(), PrinterEventListener {
         val targetY = Printer.motorY.target * pixelsPerMm
         g.color = Color.RED
         g.fillOval(targetX.roundToInt() - 3, targetY.roundToInt() - 3, 7, 7)
+
+        if (Printer.state !in showPrintingStates) {
+            isRepainting = false
+            return
+        }
+
+        g.font = Font("Dialog", Font.PLAIN, 30)
+        val message = Printer.state.name.replace("_", " ")
+        val textWidth = g.fontMetrics.stringWidth(message)
+        val textHeight = g.fontMetrics.height
+        val textMarginWidth = 30
+        val textMarginHeight = 10
+
+        g.color = Color(56, 56, 56)
+        g.fillRect(
+            (width - textWidth) / 2 - textMarginWidth,
+            (height - textHeight) / 2 - textMarginHeight,
+            textWidth + 2 * textMarginWidth,
+            textHeight + 2 * textMarginHeight,
+        )
+        g.color = Color.WHITE
+        g.drawString(message, (width - textWidth) / 2, ((height + textHeight * 0.7) / 2).roundToInt())
+
+        isRepainting = false
+    }
+
+    private fun startScreenUpdateTimer() {
+        screenUpdateTimer.schedule(object : TimerTask() {
+            override fun run() {
+                if (isRepainting) {
+                    logger.info("Skipping paint update: still updating")
+                    return
+                }
+
+                repaint()
+            }
+        }, 0, 1000 / Config.paintFPS)
+    }
+
+    fun stopScreenUpdateTimer() {
+        screenUpdateTimer.cancel()
     }
 }

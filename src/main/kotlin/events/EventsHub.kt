@@ -26,14 +26,14 @@ object EventsHub : SerialEventListener, PrinterEventListener {
     override fun dataReceived(data: List<String>) {
         logger.finer("Sending dataReceived event")
         serialEventListeners.toTypedArray().forEach {
-            it.dataReceived(data)
+            Thread { it.dataReceived(data) }.start()
         }
     }
 
     override fun dataSend(data: String) {
         logger.finer("Sending dataSend event")
         serialEventListeners.toTypedArray().forEach {
-            it.dataSend(data)
+            Thread { it.dataSend(data) }.start()
         }
     }
 
@@ -44,21 +44,21 @@ object EventsHub : SerialEventListener, PrinterEventListener {
     override fun newPosition(x: Double, y: Double) {
         logger.finer("Sending newPosition event")
         printerEventListeners.toTypedArray().forEach {
-            it.newPosition(x, y)
+            Thread { it.newPosition(x, y) }.start()
         }
     }
 
     override fun targetReached(x: Double, y: Double) {
         logger.finer("Sending targetReached event")
         printerEventListeners.toTypedArray().forEach {
-            it.targetReached(x, y)
+            Thread { it.targetReached(x, y) }.start()
         }
     }
 
     override fun stateChanged(newState: PrinterState) {
         logger.finer("Sending stateChanged event")
         printerEventListeners.toTypedArray().forEach {
-            it.stateChanged(newState)
+            Thread { it.stateChanged(newState) }.start()
         }
     }
 }

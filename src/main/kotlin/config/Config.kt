@@ -11,9 +11,31 @@ object Config {
     var deviceName = "ttyUSB0"
     var baudRate = 115200
 
+    // Printer
+    var serialStringIsBooting = "[Main] Booting."
+    var serialStringCalibratingMotorX = "[StepperMotor] X: Finding reset position"
+    var serialStringCalibratingMotorY = "[StepperMotor] Y: Finding reset position"
+    var serialStringBootDone = "[Main] Boot done."
+    var serialStringSweepOn = "[Serial] Toggling sweep mode on"
+    var serialStringSweepOff = "[Serial] Toggling sweep mode off"
+    var serialStringSweepUpX = "[Main] X: Sweep up"
+    var serialStringSweepDownX = "[Main] X: Sweep down"
+    var serialStringSweepUpY = "[Main] Y: Sweep up"
+    var serialStringSweepDownY = "[Main] Y: Sweep down"
+    var serialStringMotorXTargetReached = "[StepperMotor] X: Target reached"
+    var serialStringMotorYTargetReached = "[StepperMotor] Y: Target reached"
+    var serialStringCalibrateMotors = "f\n"
+    var serialStringTurnSweepOn = "s1\n"
+    var serialStringTurnSweepOff = "s0\n"
+
     // Runtime
     var runVirtual = false
     var runVirtualSpeed: Long = 4
+
+    // GUI
+    var paintFPS: Long = 25
+    var pixelsPerMm = 15.0
+    var maxLastKnownPositions = 1000
 
     fun load() {
         try {
