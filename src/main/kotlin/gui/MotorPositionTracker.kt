@@ -121,7 +121,7 @@ class MotorPositionTracker : JPanel(), PrinterEventListener {
         screenUpdateTimer.schedule(object : TimerTask() {
             override fun run() {
                 if (isRepainting) {
-                    logger.info("Skipping paint update: still updating")
+                    logger.finer("Skipping paint update: still updating")
                     return
                 }
 

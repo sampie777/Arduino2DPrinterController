@@ -39,6 +39,13 @@ class SerialDataPanel : JPanel(), SerialEventListener {
                 return@forEach
             }
 
+            if (it == "[Serial] New target steps:"
+                || it.matches("\\tX = \\d+".toRegex())
+                || it.matches("\\tY = \\d+".toRegex())
+            ) {
+                return@forEach
+            }
+
             textField.append("<[$timestamp] ${it}\n")
         }
     }
@@ -50,6 +57,6 @@ class SerialDataPanel : JPanel(), SerialEventListener {
         }
 
         val timestamp = SimpleDateFormat("HH:mm:ss.SSS").format(Date())
-        textField.append(">[$timestamp] ${data}\n")
+        textField.append(">[$timestamp] ${data.trimEnd('\n')}\n")
     }
 }
