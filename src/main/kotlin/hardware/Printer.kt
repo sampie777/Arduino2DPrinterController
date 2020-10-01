@@ -35,7 +35,7 @@ object Printer : PrintingDevice {
 
     var blueprint = emptyArray<Array<Double>>()
 
-    private val serialListener = SerialListener(this)
+    val serialListener = SerialListener(this)
 
     override fun connect(deviceName: String, baudRate: Int): Boolean {
         if (Config.runVirtual) {
@@ -95,7 +95,7 @@ object Printer : PrintingDevice {
     }
 
     override fun processSerialInput(data: List<String>) {
-        if (data.find { it.contains("[Serial] Invalid coordinates. Expected value") } != null ) {
+        if (data.find { it.contains("[Serial] Invalid coordinates. Expected value") } != null) {
             logger.warning("Serial problem with coordinates")
         }
 
@@ -105,7 +105,8 @@ object Printer : PrintingDevice {
         }
         if (Config.serialStringCalibratingMotorX in data
             || Config.serialStringCalibratingMotorY in data
-            || Config.serialStringCalibratingMotorZ in data) {
+            || Config.serialStringCalibratingMotorZ in data
+        ) {
             logger.info("Printer is calibrating")
             state = PrinterState.CALIBRATING
         }
@@ -126,7 +127,7 @@ object Printer : PrintingDevice {
         }
 
         if (Config.serialStringSweepOff in data) {
-            logger.info("Sweeping disabled, printer is ready")
+            logger.info("Sweeping disabled")
             if (state != PrinterState.PRINTING) {
                 state = PrinterState.IDLE
             }
@@ -149,9 +150,46 @@ object Printer : PrintingDevice {
         }
     }
 
-    fun moveTo(x: Double, y: Double, z: Double, waitForMotors: Boolean = true) {
+    fun waitForMotors() {
+        logger.info("Waiting for motors to reach position")
+
+        if (Config.runVirtual) {
+            if (state == PrinterState.RESETTING) {
+                Thread.sleep(1000)
+            }
+            serialListener.onDataReceived("${Config.serialStringMotorXTargetReached}\n".toByteArray())
+            serialListener.onDataReceived("${Config.serialStringMotorYTargetReached}\n".toByteArray())
+            serialListener.onDataReceived("${Config.serialStringMotorZTargetReached}\n".toByteArray())
+            Thread.sleep(Config.runVirtualSpeed)
+        }
+
+        @Suppress("ControlFlowWithEmptyBody")
+        while (!(motorX.targetReached && motorY.targetReached && motorZ.targetReached)) {
+        }
+
+        logger.info("Motor positions reached")
+        state = PrinterState.IDLE
+        EventsHub.targetReached(motorX.target, motorY.target, motorZ.target)
+    }
+
+    fun resetHead(waitForMotors: Boolean = true, ignorePause: Boolean = false) {
+        logger.info("Resetting printer head")
+        moveTo(0.0, 0.0, 0.0, waitForMotors, ignorePause, disguiseAsState = PrinterState.RESETTING)
+        logger.info("Reset done")
+    }
+
+    fun moveTo(
+        x: Double, y: Double, z: Double,
+        waitForMotors: Boolean = true,
+        ignorePause: Boolean = false,
+        disguiseAsState: PrinterState = PrinterState.PRINTING
+    ) {
+        if (!ignorePause) {
+            App.waitForPauseBlocking()
+        }
+
         logger.info("Moving to $x, $y, $z")
-        state = PrinterState.PRINTING
+        state = disguiseAsState
 
         motorX.setTargetPosition(x)
         motorY.setTargetPosition(y)
@@ -169,25 +207,6 @@ object Printer : PrintingDevice {
         }
 
         waitForMotors()
-    }
-
-    fun waitForMotors() {
-        logger.info("Waiting for motors to reach position")
-
-        if (Config.runVirtual) {
-            serialListener.onDataReceived("${Config.serialStringMotorXTargetReached}\n".toByteArray())
-            serialListener.onDataReceived("${Config.serialStringMotorYTargetReached}\n".toByteArray())
-            serialListener.onDataReceived("${Config.serialStringMotorZTargetReached}\n".toByteArray())
-            Thread.sleep(Config.runVirtualSpeed)
-        }
-
-        @Suppress("ControlFlowWithEmptyBody")
-        while (!(motorX.targetReached && motorY.targetReached && motorZ.targetReached)) {
-        }
-
-        logger.info("Motor positions reached")
-        state = PrinterState.IDLE
-        EventsHub.targetReached(motorX.target, motorY.target, motorZ.target)
     }
 
     fun lineTo(x: Double, y: Double, z: Double) {
@@ -215,7 +234,7 @@ object Printer : PrintingDevice {
         }
     }
 
-    fun resetHead() {
+    fun calibrateMotors() {
         serialListener.send(Config.serialStringCalibrateMotors)
 
         if (Config.runVirtual) {

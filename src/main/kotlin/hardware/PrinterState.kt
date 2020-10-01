@@ -5,6 +5,7 @@ enum class PrinterState {
     BOOTING,
     SWEEPING,
     CALIBRATING,
+    RESETTING,
     PRINTING,
     IDLE
 }

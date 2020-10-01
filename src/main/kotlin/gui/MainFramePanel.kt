@@ -17,7 +17,12 @@ class MainFramePanel : JPanel() {
         border = EmptyBorder(10, 10, 10, 10)
         layout = BorderLayout(10, 10)
 
+        val bottomPanel = JPanel()
+        bottomPanel.layout = BorderLayout(10, 10)
+        bottomPanel.add(SerialDataPanel(), BorderLayout.CENTER)
+        bottomPanel.add(ControlPanel(), BorderLayout.LINE_END)
+
         add(MotorPositionTracker(), BorderLayout.CENTER)
-        add(SerialDataPanel(), BorderLayout.PAGE_END)
+        add(bottomPanel, BorderLayout.PAGE_END)
     }
 }

@@ -32,13 +32,16 @@ fun main(args: Array<String>) {
 
     var drawingDone = false
     while (connection) {
-        if (Printer.state != PrinterState.IDLE && Printer.state != PrinterState.PRINTING) continue
+        Thread.sleep(100)
+
+        if (App.isPaused) continue
+
+        if (Printer.state != PrinterState.IDLE
+            && Printer.state != PrinterState.PRINTING) continue
 
         if (drawingDone) continue
 
-        Thread.sleep(500)
-        Printer.moveTo(0.0, 0.0, 0.0, waitForMotors = true)
-
+        Printer.resetHead()
         drawLines()
         drawingDone = true
     }
@@ -66,16 +69,11 @@ fun attachExitCatcher() {
 fun drawLines() {
     logger.info("Start drawing")
 
-    val zPosition = 28.0
+    val zPosition = 25.0
 
     Printer.blueprint = handDrawingPoints
 
     // Set head to nearest location by going along the edge of the paper
-//    if (handDrawingPoints[0][0] > handDrawingPoints[0][1]) {
-//        Printer.lineTo(0.0, handDrawingPoints[0][0], 0.0)
-//    } else {
-//        Printer.lineTo(handDrawingPoints[0][1], 0.0, 0.0)
-//    }
     Printer.lineTo(handDrawingPoints[0][1], handDrawingPoints[0][0], 0.0)
     Printer.lineTo(handDrawingPoints[0][1], handDrawingPoints[0][0], zPosition) // Lower head
 
@@ -90,12 +88,7 @@ fun drawLines() {
     Printer.lineTo(handDrawingPoints[0][1], handDrawingPoints[0][0], 0.0)    // Lift head
 
 
-    // Set head to nearest location for going along the edge of the paper
-//    if (handDrawingPoints[0][0] > handDrawingPoints[0][1]) {
-//        Printer.lineTo(0.0, handDrawingPoints[0][0], 0.0)
-//    } else {
-//        Printer.lineTo(handDrawingPoints[0][1], 0.0, 0.0)
-//    }
+    // Move head to reset position
     Printer.lineTo(0.0, 0.0, 0.0)
 
     logger.info("Drawing is done")

@@ -24,6 +24,7 @@ class MotorPositionTracker : JPanel(), PrinterEventListener {
         PrinterState.BOOTING,
         PrinterState.CALIBRATING,
         PrinterState.SWEEPING,
+        PrinterState.RESETTING,
         PrinterState.IDLE,
     )
 

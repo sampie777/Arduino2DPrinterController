@@ -1,3 +1,4 @@
+import config.Config
 import hardware.Printer
 import java.io.File
 import java.io.UnsupportedEncodingException
@@ -15,8 +16,23 @@ fun linspace(start: Int, stop: Int, num: Int) =
 fun exitApplication() {
     logger.info("Exiting application...")
 
-    Printer.moveTo(0.0, 0.0, 0.0, waitForMotors = false)
-    Printer.disconnect()
+    App.isPaused = false
+
+    if (Config.resetHeadWhenShutDown) {
+        try {
+            Printer.resetHead(waitForMotors = false, ignorePause = true)
+        } catch (t: Throwable) {
+            logger.warning("Failed to reset printer head")
+            t.printStackTrace()
+        }
+    }
+
+    try {
+        Printer.disconnect()
+    } catch (t: Throwable) {
+        logger.warning("Failed to disconnect to printer")
+        t.printStackTrace()
+    }
 
     logger.info("Shutdown finished")
 }

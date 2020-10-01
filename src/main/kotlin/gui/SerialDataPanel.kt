@@ -53,10 +53,9 @@ class SerialDataPanel : JPanel(), SerialEventListener {
     }
 
     override fun dataSend(data: String) {
-        println("Sending: $data")
         // Ignore coordinates
-        if (data.matches("^x\\d{4}y\\d{4}z\\d{4}\n?$".toRegex())) {
-//            return
+        if (!Config.displayCoordinatesSendInTerminal && data.matches("^x\\d{4}y\\d{4}z\\d{4}\n?$".toRegex())) {
+            return
         }
 
         val timestamp = SimpleDateFormat("HH:mm:ss.SSS").format(Date())

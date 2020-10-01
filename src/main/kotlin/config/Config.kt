@@ -12,6 +12,7 @@ object Config {
     var baudRate = 115200
 
     // Printer
+    var resetHeadWhenShutDown: Boolean = false
     var serialStringIsBooting = "[Main] Booting."
     var serialStringCalibratingMotorX = "[StepperMotor] X: Finding reset position"
     var serialStringCalibratingMotorY = "[StepperMotor] Y: Finding reset position"
@@ -40,6 +41,7 @@ object Config {
     var paintFPS: Long = 25
     var pixelsPerMm = 15.0
     var maxLastKnownPositions = 1000
+    var displayCoordinatesSendInTerminal = true
 
     fun load() {
         try {
