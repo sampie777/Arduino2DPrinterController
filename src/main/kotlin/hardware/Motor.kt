@@ -12,7 +12,7 @@ class Motor(
     private val logger = Logger.getLogger(Motor::class.java.name)
 
     @Volatile
-    var position: Double = 0.0
+    var position: Double = -0.01
     @Volatile
     var target: Double = 0.0
 

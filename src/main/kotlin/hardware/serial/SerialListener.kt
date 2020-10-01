@@ -61,7 +61,7 @@ class SerialListener(private val printingDevice: PrintingDevice) : SerialPortDat
             return
         }
 
-        val dataBytes = data.toByteArray()
+        val dataBytes = "${data}\n".toByteArray()
         val writtenBytes = printingDevice.getComPort()?.writeBytes(dataBytes, dataBytes.size.toLong())
 
         if (writtenBytes != dataBytes.size) {

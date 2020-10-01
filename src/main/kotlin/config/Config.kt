@@ -15,6 +15,7 @@ object Config {
     var serialStringIsBooting = "[Main] Booting."
     var serialStringCalibratingMotorX = "[StepperMotor] X: Finding reset position"
     var serialStringCalibratingMotorY = "[StepperMotor] Y: Finding reset position"
+    var serialStringCalibratingMotorZ = "[StepperMotor] Z: Finding reset position"
     var serialStringBootDone = "[Main] Boot done."
     var serialStringSweepOn = "[Serial] Toggling sweep mode on"
     var serialStringSweepOff = "[Serial] Toggling sweep mode off"
@@ -22,11 +23,14 @@ object Config {
     var serialStringSweepDownX = "[Main] X: Sweep down"
     var serialStringSweepUpY = "[Main] Y: Sweep up"
     var serialStringSweepDownY = "[Main] Y: Sweep down"
+    var serialStringSweepUpZ = "[Main] Z: Sweep up"
+    var serialStringSweepDownZ = "[Main] Z: Sweep down"
     var serialStringMotorXTargetReached = "[StepperMotor] X: Target reached"
     var serialStringMotorYTargetReached = "[StepperMotor] Y: Target reached"
-    var serialStringCalibrateMotors = "f\n"
-    var serialStringTurnSweepOn = "s1\n"
-    var serialStringTurnSweepOff = "s0\n"
+    var serialStringMotorZTargetReached = "[StepperMotor] Z: Target reached"
+    var serialStringCalibrateMotors = "f"
+    var serialStringTurnSweepOn = "s1"
+    var serialStringTurnSweepOff = "s0"
 
     // Runtime
     var runVirtual = false

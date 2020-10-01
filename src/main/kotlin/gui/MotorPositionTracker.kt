@@ -28,6 +28,7 @@ class MotorPositionTracker : JPanel(), PrinterEventListener {
     )
 
     private val screenUpdateTimer = Timer()
+
     @Volatile
     private var isRepainting = false
 
@@ -41,13 +42,17 @@ class MotorPositionTracker : JPanel(), PrinterEventListener {
 
     private fun initGui() {
         border = LineBorder(Color.BLACK)
-        preferredSize = Dimension((109 * pixelsPerMm).toInt(), (31 * pixelsPerMm).toInt())
+        preferredSize = Dimension((109 * pixelsPerMm).toInt(), (132 * pixelsPerMm).toInt())
     }
 
     private fun saveLastKnownPositions() {
-        val position = arrayOf(Printer.motorX.position, Printer.motorY.position)
+        val position = arrayOf(Printer.motorX.position, Printer.motorY.position, Printer.motorZ.position)
 
-        val positionExists = lastKnownPositions.find { it[0] == position[0] && it[1] == position[1] }
+        val positionExists = lastKnownPositions.find {
+            it[0] == position[0]
+                    && it[1] == position[1]
+                    && it[2] == position[2]
+        }
         if (positionExists != null) {
             return
         }
@@ -59,7 +64,7 @@ class MotorPositionTracker : JPanel(), PrinterEventListener {
         }
     }
 
-    override fun targetReached(x: Double, y: Double) {
+    override fun targetReached(x: Double, y: Double, z: Double) {
         saveLastKnownPositions()
     }
 
@@ -72,25 +77,36 @@ class MotorPositionTracker : JPanel(), PrinterEventListener {
         g.color = Color(83, 83, 83)
         g.fillRect(0, 0, width, height)
 
+        Printer.blueprint.forEach {
+            val positionX = it[1] * pixelsPerMm
+            val positionY = it[0] * pixelsPerMm
+
+            val brightness = 130
+            g.color = Color(brightness, brightness, brightness)
+            g.fillOval(positionX.roundToInt(), positionY.roundToInt(), 3, 3)
+        }
+
         lastKnownPositions
             .toTypedArray()
             .forEachIndexed { index, it ->
                 val positionX = it[0] * pixelsPerMm
                 val positionY = it[1] * pixelsPerMm
+                val radius = 2 + (it[2]  / 20).roundToInt()
 
                 g.color = Color(200 - (200 * index.toDouble() / lastKnownPositions.size).roundToInt(), 255, 0)
-                g.fillOval(positionX.roundToInt() - 1, positionY.roundToInt() - 1, 2, 2)
+                g.fillOval(positionX.roundToInt() - 1, positionY.roundToInt() - 1, radius, radius)
             }
 
         val positionX = Printer.motorX.position * pixelsPerMm
         val positionY = Printer.motorY.position * pixelsPerMm
+        val radius = (Printer.motorZ.position / 20).roundToInt()
         g.color = Color.GREEN
-        g.fillOval(positionX.roundToInt() - 2, positionY.roundToInt() - 2, 5, 5)
+        g.fillOval(positionX.roundToInt() - 2, positionY.roundToInt() - 2, 5 + radius, 5 + radius)
 
         val targetX = Printer.motorX.target * pixelsPerMm
         val targetY = Printer.motorY.target * pixelsPerMm
         g.color = Color.RED
-        g.fillOval(targetX.roundToInt() - 3, targetY.roundToInt() - 3, 7, 7)
+        g.fillOval(targetX.roundToInt() - 3, targetY.roundToInt() - 3, 7 + radius, 7 + radius)
 
         if (Printer.state !in showPrintingStates) {
             isRepainting = false

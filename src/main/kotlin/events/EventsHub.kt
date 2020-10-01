@@ -41,17 +41,17 @@ object EventsHub : SerialEventListener, PrinterEventListener {
     Printer events
      */
 
-    override fun newPosition(x: Double, y: Double) {
+    override fun newPosition(x: Double, y: Double, z: Double) {
         logger.finer("Sending newPosition event")
         printerEventListeners.toTypedArray().forEach {
-            Thread { it.newPosition(x, y) }.start()
+            Thread { it.newPosition(x, y, z) }.start()
         }
     }
 
-    override fun targetReached(x: Double, y: Double) {
+    override fun targetReached(x: Double, y: Double, z: Double) {
         logger.finer("Sending targetReached event")
         printerEventListeners.toTypedArray().forEach {
-            Thread { it.targetReached(x, y) }.start()
+            Thread { it.targetReached(x, y, z) }.start()
         }
     }
 

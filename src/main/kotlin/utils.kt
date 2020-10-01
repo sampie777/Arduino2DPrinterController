@@ -15,6 +15,7 @@ fun linspace(start: Int, stop: Int, num: Int) =
 fun exitApplication() {
     logger.info("Exiting application...")
 
+    Printer.moveTo(0.0, 0.0, 0.0, waitForMotors = false)
     Printer.disconnect()
 
     logger.info("Shutdown finished")

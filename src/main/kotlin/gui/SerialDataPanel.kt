@@ -10,7 +10,6 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.logging.Logger
 import javax.swing.JPanel
-import kotlin.random.Random
 
 
 class SerialDataPanel : JPanel(), SerialEventListener {
@@ -35,13 +34,16 @@ class SerialDataPanel : JPanel(), SerialEventListener {
         val timestamp = SimpleDateFormat("HH:mm:ss.SSS").format(Date())
         data.forEach {
             // Ignore target reached
-            if (it == Config.serialStringMotorXTargetReached || it == Config.serialStringMotorYTargetReached) {
+            if (it == Config.serialStringMotorXTargetReached
+                || it == Config.serialStringMotorYTargetReached
+                || it == Config.serialStringMotorZTargetReached) {
                 return@forEach
             }
 
             if (it == "[Serial] New target steps:"
                 || it.matches("\\tX = \\d+".toRegex())
                 || it.matches("\\tY = \\d+".toRegex())
+                || it.matches("\\tZ = \\d+".toRegex())
             ) {
                 return@forEach
             }
@@ -51,9 +53,10 @@ class SerialDataPanel : JPanel(), SerialEventListener {
     }
 
     override fun dataSend(data: String) {
+        println("Sending: $data")
         // Ignore coordinates
-        if (data.matches("^x\\d{4}y\\d{4}\n?$".toRegex())) {
-            return
+        if (data.matches("^x\\d{4}y\\d{4}z\\d{4}\n?$".toRegex())) {
+//            return
         }
 
         val timestamp = SimpleDateFormat("HH:mm:ss.SSS").format(Date())

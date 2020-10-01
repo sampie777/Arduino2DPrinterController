@@ -28,8 +28,12 @@ object Printer : PrintingDevice {
             EventsHub.stateChanged(value)
         }
 
-    val motorX = Motor("X", Config.serialStringMotorXTargetReached, 0.08)
-    val motorY = Motor("Y", Config.serialStringMotorYTargetReached, 0.23)
+    val motorX = Motor("X", Config.serialStringMotorXTargetReached, 0.05) //0.0057)
+    val motorY = Motor("Y", Config.serialStringMotorYTargetReached, 0.05) //0.0006)
+    val motorZ = Motor("Z", Config.serialStringMotorZTargetReached, 0.23)
+    val headOffset = arrayOf(20.0, 45.0, 0.0)
+
+    var blueprint = emptyArray<Array<Double>>()
 
     private val serialListener = SerialListener(this)
 
@@ -41,6 +45,7 @@ object Printer : PrintingDevice {
             Thread.sleep(1000)
             serialListener.onDataReceived("${Config.serialStringCalibratingMotorX}\n".toByteArray())
             serialListener.onDataReceived("${Config.serialStringCalibratingMotorY}\n".toByteArray())
+            serialListener.onDataReceived("${Config.serialStringCalibratingMotorZ}\n".toByteArray())
             Thread.sleep(2000)
             serialListener.onDataReceived("${Config.serialStringBootDone}\n".toByteArray())
             return true
@@ -90,11 +95,17 @@ object Printer : PrintingDevice {
     }
 
     override fun processSerialInput(data: List<String>) {
+        if (data.find { it.contains("[Serial] Invalid coordinates. Expected value") } != null ) {
+            logger.warning("Serial problem with coordinates")
+        }
+
         if (Config.serialStringIsBooting in data) {
             logger.info("Printer is booting")
             state = PrinterState.BOOTING
         }
-        if (Config.serialStringCalibratingMotorX in data || Config.serialStringCalibratingMotorY in data) {
+        if (Config.serialStringCalibratingMotorX in data
+            || Config.serialStringCalibratingMotorY in data
+            || Config.serialStringCalibratingMotorZ in data) {
             logger.info("Printer is calibrating")
             state = PrinterState.CALIBRATING
         }
@@ -108,6 +119,7 @@ object Printer : PrintingDevice {
         if (Config.serialStringSweepOn in data
             || Config.serialStringSweepUpX in data || Config.serialStringSweepDownX in data
             || Config.serialStringSweepUpY in data || Config.serialStringSweepDownY in data
+            || Config.serialStringSweepUpZ in data || Config.serialStringSweepDownZ in data
         ) {
             state = PrinterState.SWEEPING
             setSweep(false)
@@ -115,7 +127,9 @@ object Printer : PrintingDevice {
 
         if (Config.serialStringSweepOff in data) {
             logger.info("Sweeping disabled, printer is ready")
-            state = PrinterState.IDLE
+            if (state != PrinterState.PRINTING) {
+                state = PrinterState.IDLE
+            }
         }
 
         if (motorX.targetReachedIdentifier in data) {
@@ -128,64 +142,77 @@ object Printer : PrintingDevice {
             motorY.targetReached = true
             motorY.position = motorY.target
         }
+        if (motorZ.targetReachedIdentifier in data) {
+            logger.fine("Motor ${motorZ.name} reached target")
+            motorZ.targetReached = true
+            motorZ.position = motorZ.target
+        }
     }
 
-    fun moveTo(x: Double, y: Double, waitForMotors: Boolean = false) {
-        logger.fine("Moving to $x, $y")
+    fun moveTo(x: Double, y: Double, z: Double, waitForMotors: Boolean = true) {
+        logger.info("Moving to $x, $y, $z")
+        state = PrinterState.PRINTING
 
         motorX.setTargetPosition(x)
         motorY.setTargetPosition(y)
+        motorZ.setTargetPosition(z)
 
-        val paddedX = (x * 10).roundToInt().toString().padStart(4, '0')
-        val paddedY = (y * 10).roundToInt().toString().padStart(4, '0')
-        serialListener.send("x${paddedX}y${paddedY}")
+        val paddedX = ((x + headOffset[0]) * 10).roundToInt().toString().padStart(4, '0')
+        val paddedY = ((y + headOffset[1]) * 10).roundToInt().toString().padStart(4, '0')
+        val paddedZ = ((z + headOffset[2]) * 10).roundToInt().toString().padStart(4, '0')
+        serialListener.send("x${paddedX}y${paddedY}z${paddedZ}")
 
-        EventsHub.newPosition(motorX.position, motorY.position)
+        EventsHub.newPosition(motorX.position, motorY.position, motorZ.position)
 
-        if (!waitForMotors) return
+        if (!waitForMotors) {
+            state = PrinterState.IDLE
+        }
 
         waitForMotors()
     }
 
     fun waitForMotors() {
-        logger.fine("Waiting for motors to reach position")
+        logger.info("Waiting for motors to reach position")
 
         if (Config.runVirtual) {
             serialListener.onDataReceived("${Config.serialStringMotorXTargetReached}\n".toByteArray())
             serialListener.onDataReceived("${Config.serialStringMotorYTargetReached}\n".toByteArray())
+            serialListener.onDataReceived("${Config.serialStringMotorZTargetReached}\n".toByteArray())
             Thread.sleep(Config.runVirtualSpeed)
         }
 
         @Suppress("ControlFlowWithEmptyBody")
-        while (!(motorX.targetReached && motorY.targetReached)) {
+        while (!(motorX.targetReached && motorY.targetReached && motorZ.targetReached)) {
         }
 
-        EventsHub.targetReached(motorX.target, motorY.target)
-        logger.fine("Motor positions reached")
+        logger.info("Motor positions reached")
+        state = PrinterState.IDLE
+        EventsHub.targetReached(motorX.target, motorY.target, motorZ.target)
     }
 
-    fun lineTo(x: Double, y: Double) {
-        logger.fine("Line to $x, $y")
-        state = PrinterState.PRINTING
+    fun lineTo(x: Double, y: Double, z: Double) {
+        logger.info("Line to $x, $y, $z")
 
         val xDiff = x - motorX.position
         val yDiff = y - motorY.position
+        val zDiff = z - motorZ.position
 
         val stepsX = abs(xDiff / motorX.minimumStepDistance).roundToInt()
         val stepsY = abs(yDiff / motorY.minimumStepDistance).roundToInt()
+        val stepsZ = abs(zDiff / motorZ.minimumStepDistance).roundToInt()
 
         val steps = max(stepsX, stepsY)
 
         val startX = motorX.position
         val startY = motorY.position
+        val startZ = motorZ.position
         (1..steps).forEach { step ->
             moveTo(
                 motorX.roundToMinimumDistance(startX + xDiff * step.toDouble() / steps),
                 motorY.roundToMinimumDistance(startY + yDiff * step.toDouble() / steps),
-                waitForMotors = true
+                motorZ.roundToMinimumDistance(z)
             )
         }
-        state = PrinterState.IDLE
     }
 
     fun resetHead() {
@@ -195,6 +222,7 @@ object Printer : PrintingDevice {
             Thread.sleep(10)
             serialListener.onDataReceived("${Config.serialStringCalibratingMotorX}\n".toByteArray())
             serialListener.onDataReceived("${Config.serialStringCalibratingMotorY}\n".toByteArray())
+            serialListener.onDataReceived("${Config.serialStringCalibratingMotorZ}\n".toByteArray())
         }
 
         waitForMotors()
