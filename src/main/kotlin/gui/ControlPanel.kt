@@ -1,24 +1,27 @@
 package gui
 
 
+import App
+import events.AppEventListener
+import events.EventsHub
 import hardware.Printer
 import java.awt.BorderLayout
-import java.awt.Color
 import java.awt.Dimension
-import java.awt.FlowLayout
 import java.awt.event.KeyEvent
 import java.awt.event.KeyListener
 import java.util.logging.Logger
 import javax.swing.*
-import javax.swing.border.EmptyBorder
 
-class ControlPanel : JPanel() {
+class ControlPanel : JPanel(), AppEventListener {
     private val logger = Logger.getLogger(ControlPanel::class.java.name)
 
     private val commandTextField = JTextField()
+    private val restartButton = JButton("Restart")
 
     init {
         initGui()
+
+        EventsHub.register(this)
     }
 
     private fun initGui() {
@@ -30,6 +33,12 @@ class ControlPanel : JPanel() {
             App.isPaused = !App.isPaused
 
             pauseButton.text = if (App.isPaused) "Resume" else "Pause"
+        }
+
+        restartButton.isEnabled = App.isDrawingFinished
+        restartButton.addActionListener {
+            logger.info("restartButton clicked")
+            App.isDrawingFinished = false
         }
 
         val headUpButton = JButton("Head up")
@@ -70,6 +79,8 @@ class ControlPanel : JPanel() {
         commandFieldPanel.add(sendCommandButton, BorderLayout.LINE_END)
 
         add(pauseButton)
+        add(Box.createRigidArea(Dimension(0, 5)))
+        add(restartButton)
         add(Box.createRigidArea(Dimension(0, 10)))
         add(headUpButton)
         add(Box.createRigidArea(Dimension(0, 5)))
@@ -80,5 +91,9 @@ class ControlPanel : JPanel() {
     private fun sendCommandText() {
         Printer.serialListener.send(commandTextField.text)
         commandTextField.text = ""
+    }
+
+    override fun appPropertyChanged(propertyName: String, newValue: Any?) {
+        restartButton.isEnabled = App.isDrawingFinished
     }
 }

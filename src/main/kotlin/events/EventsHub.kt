@@ -3,11 +3,12 @@ package events
 import hardware.PrinterState
 import java.util.logging.Logger
 
-object EventsHub : SerialEventListener, PrinterEventListener {
+object EventsHub : SerialEventListener, PrinterEventListener, AppEventListener {
     private val logger = Logger.getLogger(EventsHub::class.java.name)
 
     private val serialEventListeners = hashSetOf<SerialEventListener>()
     private val printerEventListeners = hashSetOf<PrinterEventListener>()
+    private val appEventListeners = hashSetOf<AppEventListener>()
 
     fun register(listener: SerialEventListener) {
         logger.info("Adding SerialEventListener")
@@ -17,6 +18,11 @@ object EventsHub : SerialEventListener, PrinterEventListener {
     fun register(listener: PrinterEventListener) {
         logger.info("Adding PrinterEventListener")
         printerEventListeners.add(listener)
+    }
+
+    fun register(listener: AppEventListener) {
+        logger.info("Adding AppEventListener")
+        appEventListeners.add(listener)
     }
 
     /*
@@ -59,6 +65,16 @@ object EventsHub : SerialEventListener, PrinterEventListener {
         logger.finer("Sending stateChanged event")
         printerEventListeners.toTypedArray().forEach {
             Thread { it.stateChanged(newState) }.start()
+        }
+    }
+
+    /*
+    App events
+     */
+    override fun appPropertyChanged(propertyName: String, newValue: Any?) {
+        logger.finer("Sending appPropertyChanged event")
+        appEventListeners.toTypedArray().forEach {
+            Thread { it.appPropertyChanged(propertyName, newValue) }.start()
         }
     }
 }

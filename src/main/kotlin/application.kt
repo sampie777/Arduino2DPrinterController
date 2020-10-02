@@ -30,7 +30,6 @@ fun main(args: Array<String>) {
         exitApplication()
     }
 
-    var drawingDone = false
     while (connection) {
         Thread.sleep(100)
 
@@ -39,11 +38,10 @@ fun main(args: Array<String>) {
         if (Printer.state != PrinterState.IDLE
             && Printer.state != PrinterState.PRINTING) continue
 
-        if (drawingDone) continue
+        if (App.isDrawingFinished) continue
 
         Printer.resetHead()
         drawLines()
-        drawingDone = true
     }
 
     logger.info("Connection lost")
@@ -68,8 +66,9 @@ fun attachExitCatcher() {
 
 fun drawLines() {
     logger.info("Start drawing")
+    App.isDrawingFinished = false
 
-    val zPosition = 25.0
+    val zPosition = 21.0
 
     Printer.blueprint = handDrawingPoints
 
@@ -92,4 +91,5 @@ fun drawLines() {
     Printer.lineTo(0.0, 0.0, 0.0)
 
     logger.info("Drawing is done")
+    App.isDrawingFinished = true
 }
