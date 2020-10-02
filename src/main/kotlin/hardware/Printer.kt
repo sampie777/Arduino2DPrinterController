@@ -1,5 +1,6 @@
 package hardware
 
+import App
 import com.fazecast.jSerialComm.SerialPort
 import config.Config
 import events.EventsHub
@@ -31,7 +32,6 @@ object Printer : PrintingDevice {
     val motorX = Motor("X", Config.serialStringMotorXTargetReached, 0.05) //0.0057)
     val motorY = Motor("Y", Config.serialStringMotorYTargetReached, 0.05) //0.0006)
     val motorZ = Motor("Z", Config.serialStringMotorZTargetReached, 0.23)
-    val headOffset = arrayOf(20.0, 45.0, 0.0)
 
     var blueprint = emptyArray<Array<Double>>()
 
@@ -195,9 +195,9 @@ object Printer : PrintingDevice {
         motorY.setTargetPosition(y)
         motorZ.setTargetPosition(z)
 
-        val paddedX = ((x + headOffset[0]) * 10).roundToInt().toString().padStart(4, '0')
-        val paddedY = ((y + headOffset[1]) * 10).roundToInt().toString().padStart(4, '0')
-        val paddedZ = ((z + headOffset[2]) * 10).roundToInt().toString().padStart(4, '0')
+        val paddedX = ((x + Config.headOffset[0]) * 10).roundToInt().toString().padStart(4, '0')
+        val paddedY = ((y + Config.headOffset[1]) * 10).roundToInt().toString().padStart(4, '0')
+        val paddedZ = ((z + Config.headOffset[2]) * 10).roundToInt().toString().padStart(4, '0')
         serialListener.send("x${paddedX}y${paddedY}z${paddedZ}")
 
         EventsHub.newPosition(motorX.position, motorY.position, motorZ.position)

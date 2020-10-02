@@ -86,10 +86,7 @@ fun drawLines() {
     )    // Close gap between last and first point
     Printer.lineTo(handDrawingPoints[0][1], handDrawingPoints[0][0], 0.0)    // Lift head
 
-
-    // Move head to reset position
-    Printer.lineTo(0.0, 0.0, 0.0)
-
     logger.info("Drawing is done")
     App.isDrawingFinished = true
+    Printer.resetHead(waitForMotors = false)
 }
