@@ -102,7 +102,9 @@ object Printer : PrintingDevice {
         if (Config.serialStringIsBooting in data) {
             logger.info("Printer is booting")
             state = PrinterState.BOOTING
+            setSweep(false)
         }
+
         if (Config.serialStringCalibratingMotorX in data
             || Config.serialStringCalibratingMotorY in data
             || Config.serialStringCalibratingMotorZ in data

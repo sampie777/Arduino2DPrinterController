@@ -13,7 +13,8 @@ object Config {
 
     // Printer
     var resetHeadWhenShutDown: Boolean = false
-    val headOffset = arrayOf(20.0, 45.0, 0.0)
+    val headOffset = arrayOf(30.0, 40.0, 0.0)
+    var headDownPosition = 20.7
     var serialStringIsBooting = "[Main] Booting."
     var serialStringCalibratingMotorX = "[StepperMotor] X: Finding reset position"
     var serialStringCalibratingMotorY = "[StepperMotor] Y: Finding reset position"

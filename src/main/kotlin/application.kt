@@ -1,5 +1,6 @@
 import com.fazecast.jSerialComm.SerialPort
 import config.Config
+import drawings.rectangleDrawingPoints
 import gui.MainFrame
 import hardware.Printer
 import hardware.PrinterState
@@ -41,7 +42,7 @@ fun main(args: Array<String>) {
         if (App.isDrawingFinished) continue
 
         Printer.resetHead()
-        drawLines()
+        drawLines(rectangleDrawingPoints)
     }
 
     logger.info("Connection lost")
@@ -64,27 +65,22 @@ fun attachExitCatcher() {
     })
 }
 
-fun drawLines() {
+fun drawLines(drawingPoints: Array<Array<Double>>) {
     logger.info("Start drawing")
     App.isDrawingFinished = false
 
-    val zPosition = 21.0
-
-    Printer.blueprint = handDrawingPoints
+    Printer.blueprint = drawingPoints
+    val zPosition = Config.headDownPosition
 
     // Set head to nearest location by going along the edge of the paper
-    Printer.lineTo(handDrawingPoints[0][1], handDrawingPoints[0][0], 0.0)
-    Printer.lineTo(handDrawingPoints[0][1], handDrawingPoints[0][0], zPosition) // Lower head
+    Printer.lineTo(drawingPoints[0][1], drawingPoints[0][0], 0.0)
+    Printer.lineTo(drawingPoints[0][1], drawingPoints[0][0], zPosition) // Lower head
 
-    handDrawingPoints.forEach {
+    drawingPoints.forEach {
         Printer.lineTo(it[1], it[0], zPosition)
     }
-    Printer.lineTo(
-        handDrawingPoints[0][1],
-        handDrawingPoints[0][0],
-        zPosition
-    )    // Close gap between last and first point
-    Printer.lineTo(handDrawingPoints[0][1], handDrawingPoints[0][0], 0.0)    // Lift head
+
+    Printer.lineTo(drawingPoints[0][1], drawingPoints[0][0], 0.0)    // Lift head
 
     logger.info("Drawing is done")
     App.isDrawingFinished = true
