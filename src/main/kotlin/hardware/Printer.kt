@@ -31,7 +31,7 @@ object Printer : PrintingDevice {
 
     val motorX = Motor("X", Config.serialStringMotorXTargetReached, 0.05) //0.0057)
     val motorY = Motor("Y", Config.serialStringMotorYTargetReached, 0.05) //0.0006)
-    val motorZ = Motor("Z", Config.serialStringMotorZTargetReached, 0.23)
+    val motorZ = Motor("Z", Config.serialStringMotorZTargetReached, 0.03)
 
     var blueprint = emptyArray<Array<Double>>()
 

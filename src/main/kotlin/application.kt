@@ -1,6 +1,6 @@
 import com.fazecast.jSerialComm.SerialPort
 import config.Config
-import drawings.rectangleDrawingPoints
+import drawings.rectangleDrawing3DPoints
 import gui.MainFrame
 import hardware.Printer
 import hardware.PrinterState
@@ -37,12 +37,16 @@ fun main(args: Array<String>) {
         if (App.isPaused) continue
 
         if (Printer.state != PrinterState.IDLE
-            && Printer.state != PrinterState.PRINTING) continue
+            && Printer.state != PrinterState.PRINTING
+        ) continue
 
         if (App.isDrawingFinished) continue
 
         Printer.resetHead()
-        drawLines(rectangleDrawingPoints)
+//        drawLines(rectangleDrawingPoints)
+//        drawLines(upDownDrawingPoints)
+//        drawLines(handDrawingPoints)
+        drawLines(rectangleDrawing3DPoints)
     }
 
     logger.info("Connection lost")
@@ -66,23 +70,40 @@ fun attachExitCatcher() {
 }
 
 fun drawLines(drawingPoints: Array<Array<Double>>) {
+    val draw3D = drawingPoints[0].size == 3
+
     logger.info("Start drawing")
     App.isDrawingFinished = false
 
     Printer.blueprint = drawingPoints
+
     val zPosition = Config.headDownPosition
-
-    // Set head to nearest location by going along the edge of the paper
-    Printer.lineTo(drawingPoints[0][1], drawingPoints[0][0], 0.0)
-    Printer.lineTo(drawingPoints[0][1], drawingPoints[0][0], zPosition) // Lower head
-
-    drawingPoints.forEach {
-        Printer.lineTo(it[1], it[0], zPosition)
+    if (draw3D) {
+        Printer.lineTo(5.0, 0.0, 0.0)
+        Printer.lineTo(5.0, drawingPoints[0][0], drawingPoints[0][2])
+    } else {
+        // Set head to nearest location by going along the edge of the paper
+        Printer.lineTo(drawingPoints[0][1], drawingPoints[0][0], 0.0)
+        Printer.lineTo(drawingPoints[0][1], drawingPoints[0][0], zPosition) // Lower head
     }
 
-    Printer.lineTo(drawingPoints[0][1], drawingPoints[0][0], 0.0)    // Lift head
+    drawingPoints.forEach {
+        if (draw3D) {
+            Printer.lineTo(it[1], it[0], it[2])
+            Thread.sleep(2000)
+        } else {
+            Printer.lineTo(it[1], it[0], zPosition)
+        }
+    }
+
+    // Lift head
+    if (draw3D) {
+        Printer.lineTo(drawingPoints[0][1] + 30.0, drawingPoints[0][0], drawingPoints[0][2])
+    } else {
+        Printer.lineTo(drawingPoints[0][1], drawingPoints[0][0], 0.0)    // Lift head
+        Printer.resetHead(waitForMotors = false)
+    }
 
     logger.info("Drawing is done")
     App.isDrawingFinished = true
-    Printer.resetHead(waitForMotors = false)
 }

@@ -22,6 +22,10 @@ class Motor(
     fun setTargetPosition(value: Double) {
         target = value
         targetReached = position == target
+
+        if (name == "Z") {
+            Thread.sleep(10)
+        }
     }
 
     fun roundToMinimumDistance(position: Double): Double {
